@@ -17,15 +17,12 @@ class XmlHandler( xml.sax.ContentHandler ):
    def __init__(self):
       self.CurrentData = []
       self.shape={}
-      self.type=[]
       self.shapes=[]
  
    # 元素开始事件处理
    def startElement(self, tag, attributes):
         if(tag=="Shape"):
             shapeType = attributes.getValue("Type")
-            if shapeType not in self.type:
-                self.type.append(shapeType)
             id = attributes.getValue("ID")    
             self.shape["id"] = id 
             self.shape["type"] = shapeType
@@ -36,17 +33,22 @@ class XmlHandler( xml.sax.ContentHandler ):
            self.CurrentData.append(tag) 
            print(self.CurrentData[0])
            return 
-
         self.CurrentData.append(tag)
-        if tag in key or "LevelData" in self.CurrentData:
-            a = "" 
-            if attributes.__len__() > 0:#attrs.getLength()>0
-                for _,attr in enumerate(attributes.getNames()):
-                    a = a + " " + attr + "=" +  attributes.getValue(attr)
-            self.printTag(tag +" " + a,len(self.CurrentData))
 
+   # 元素结束事件处理
+   def endElement(self, tag):
+        del self.CurrentData[len(self.CurrentData)-1] 
+        if(tag == "Shape" and self.shape.__contains__("content")):
+            self.shapes.append(self.shape)
+            self.shape={}    
 
-
+   # 内容事件处理
+   def characters(self, content):
+        self.printTag("content" + content,len(self.CurrentData) + 1)
+        if(self.shape.__contains__("content")):
+            self.shape["content"] = self.shape["content"] + content
+        else:
+            self.shape["content"] = content
 
    def printTag(self,tag, l):
        i = 0 
@@ -56,31 +58,7 @@ class XmlHandler( xml.sax.ContentHandler ):
        print(tag)
        return
 
-   # 元素结束事件处理
-   def endElement(self, tag):
-        if tag in key or "LevelData" in self.CurrentData:
-            #self.printTag("/" +tag,len(self.CurrentData))
-            pass
-        del self.CurrentData[len(self.CurrentData)-1] 
-        if(tag == "Shape" and self.shape.__contains__("content")):
-            self.shapes.append(self.shape)
-            self.shape={}    
-        
-
-
-   # 内容事件处理
-   def characters(self, content):
-       #tag = self.CurrentData[len(self.CurrentData) -1]
-       #if tag in key or "LevelData" in self.CurrentData:
-           self.printTag("content" + content,len(self.CurrentData) + 1)
-           if(self.shape.__contains__("content")):
-               self.shape["content"] = self.shape["content"] + content
-           else:
-                self.shape["content"] = content
-       #pass
    def find(self,parentShape,shapes):
-        if(parentShape["id"] == "367"):
-           print(parentShape)
         for shape in shapes:
             if(shape["super"] == parentShape["id"]):
                 if(not parentShape.__contains__("sub")):
@@ -98,7 +76,6 @@ class XmlHandler( xml.sax.ContentHandler ):
             for shape in exportShape["sub"]:
                 self.exportDoc(document,shape,1)
         document.save("D:\jyw\study\serverless\page\page.docx")             
-
 
    def exportDoc(self,document,exportShape,index):
         document.add_heading(exportShape["content"], index)
@@ -118,17 +95,16 @@ if ( __name__ == "__main__"):
    parser.setContentHandler( Handler )
    
    parser.parse("D:\jyw\study\serverless\page\page.xml")
-   print(Handler.type)
-   for shape in Handler.shapes:
-       print(shape)
-
 
    for shape in Handler.shapes:
        if(shape["type"] == "MainIdea"):
            parentShape = shape
            Handler.shapes.remove(shape)
            break
+   
+   #组织层级
    Handler.find(parentShape,Handler.shapes) 
-   print(parentShape)
+
+   #导出
    Handler.exportToDoc(parentShape)
 
